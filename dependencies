@@ -1,0 +1,1 @@
+npm install express mongoose passport passport-jwt jsonwebtoken bcryptjs body-parser cors dotenv
