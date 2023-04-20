@@ -1,0 +1,60 @@
+import bcrypt
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///previewed.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_SECRET_KEY'] = 'super-secret'
+db = SQLAlchemy(app)
+jwt = JWTManager(app)
+
+# User model
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+
+    def __init__(self, email, password, name, role):
+        self.email = email
+        self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        self.name = name
+        self.role = role
+
+    def check_password(self, password):
+        return bcrypt.checkpw(password.encode('utf-8'), self.password)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'name': self.name,
+            'role': self.role
+        }
+
+# Login route
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.json.get('email', None)
+    password = request.json.get('password', None)
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.check_password(password):
+        return jsonify({'message': 'Invalid email or password'}), 401
+    access_token = create_access_token(identity=user.id)
+    return jsonify({'access_token': access_token}), 200
+
+# Example of a protected route for job seekers only
+@app.route('/job_seeker_profile', methods=['GET'])
+@jwt_required()
+def job_seeker_profile():
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if current_user.role != 'job_seeker':
+        return jsonify({'message': 'You do not have access to this resource'}), 401
+    return jsonify({'user': current_user.to_dict()}), 200
+
+if __name__ == '__main__':
+    app.run(debug=True)
