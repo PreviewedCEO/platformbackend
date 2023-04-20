@@ -1,0 +1,127 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Previewed API
+  description: |
+    The Previewed API allows job seekers and employers to connect and streamline the hiring process. With personalized job matching and day-in-the-life previews, Previewed is revolutionizing the job search experience.
+  contact:
+    name: Previewed Careers
+    url: https://previewed.careers
+
+definitions:
+  Job:
+    type: object
+    properties:
+      id:
+        type: integer
+      title:
+        type: string
+      description:
+        type: string
+      location:
+        type: string
+  JobInput:
+    type: object
+    properties:
+      title:
+        type: string
+      description:
+        type: string
+      location:
+        type: string
+  JobList:
+    type: array
+    items:
+      $ref: '#/definitions/Job'
+
+paths:
+  /jobs:
+    get:
+      summary: Get job listings
+      description: Retrieve a list of job listings that match the specified criteria
+      parameters:
+        - name: location
+          in: query
+          description: The location where the job is based
+          required: false
+          type: string
+        - name: keywords
+          in: query
+          description: Keywords to search for in the job title or description
+          required: false
+          type: string
+        - name: page
+          in: query
+          description: The page number of results to retrieve
+          required: false
+          type: integer
+      responses:
+        200:
+          description: A list of job listings that match the specified criteria
+          schema:
+            $ref: '#/definitions/JobList'
+    post:
+      summary: Create a new job listing
+      description: Create a new job listing with the specified information
+      parameters:
+        - name: Authorization
+          in: header
+          description: JWT token obtained after logging in
+          required: true
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/JobInput'
+      responses:
+        201:
+          description: The newly created job listing
+          schema:
+            $ref: '#/definitions/Job'
+  /jobs/{id}:
+    get:
+      summary: Get a specific job listing
+      description: Retrieve a specific job listing by its ID
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the job listing to retrieve
+          required: true
+          type: integer
+        - name: Authorization
+          in: header
+          description: JWT token obtained after logging in
+          required: true
+          type: string
+      responses:
+        200:
+          description: The requested job listing
+          schema:
+            $ref: '#/definitions/Job'
+    put:
+      summary: Update a specific job listing
+      description: Update an existing job listing with the specified information
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the job listing to update
+          required: true
+          type: integer
+        - name: Authorization
+          in: header
+          description: JWT token obtained after logging in
+          required: true
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/JobInput'
+      responses:
+        200:
+          description: The updated job listing
+          schema:
+            $ref
