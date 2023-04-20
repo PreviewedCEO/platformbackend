@@ -1,0 +1,60 @@
+const fs = require('fs');
+const { promisify } = require('util');
+const np = require('numjs');
+const { RandomForestClassifier } = require('forestjs');
+const db = require('./db'); // Import your database functions
+
+const factors = ['skills', 'experience', 'education', 'location', 'job_type', 'salary_range', 'work_schedule'];
+
+async function trainModel() {
+  const jobSeekers = await db.getJobSeekers();
+  const jobListings = await db.getJobListings();
+
+  const data = [];
+
+  for (const jobSeeker of jobSeekers) {
+    for (const jobListing of jobListings) {
+      data.push(Object.assign({}, jobSeeker, jobListing));
+    }
+  }
+
+  const X = np.array(data.map(d => factors.map(f => d[f])));
+  const y = np.array(data.map(d => d['match']));
+
+  const clf = new RandomForestClassifier({nTrees: 100, seed: 0});
+  clf.fit(X, y);
+
+  const writeFile = promisify(fs.writeFile);
+  await writeFile('job_matching_model.json', JSON.stringify(clf.toJSON()));
+}
+
+async function matchJobs(jobSeekerId) {
+  const jobSeeker = await db.getJobSeeker(jobSeekerId);
+  const jobListings = await db.getJobListings();
+
+  const X = np.array(factors.map(f => jobSeeker[f])).reshape([1, -1]);
+
+  const readFile = promisify(fs.readFile);
+  const modelJson = await readFile('job_matching_model.json', 'utf8');
+  const clf = RandomForestClassifier.fromJSON(JSON.parse(modelJson));
+
+  const yPred = clf.predict(X);
+  const matches = [];
+
+  for (let i = 0; i < jobListings.length; i++) {
+    if (yPred.get(i) === 1) {
+      matches.push(jobListings[i]);
+    }
+  }
+
+  return matches;
+}
+
+// Example usage
+trainModel().then(() => {
+  console.log('Model training complete');
+  matchJobs(1).then(matches => {
+    console.log('Job matches:', matches);
+  });
+});
+
