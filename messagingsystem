@@ -1,0 +1,70 @@
+// Import necessary modules and libraries
+const express = require('express');
+const { Schema, model } = require('mongoose');
+
+// Define the message schema
+const messageSchema = new Schema({
+  sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  receiver: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  content: { type: String, required: true },
+  created_at: { type: Date, default: Date.now }
+});
+
+// Define the conversation schema
+const conversationSchema = new Schema({
+  job_id: { type: Schema.Types.ObjectId, ref: 'Job', required: true },
+  participants: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  messages: [messageSchema]
+});
+
+// Create Conversation and Message models
+const Conversation = model('Conversation', conversationSchema);
+const Message = model('Message', messageSchema);
+
+// Initialize express app
+const app = express();
+app.use(express.json());
+
+// Define the API endpoints for the messaging system
+app.post('/api/conversations', async (req, res) => {
+  // Create a new conversation
+  const conversation = new Conversation({
+    job_id: req.body.job_id,
+    participants: req.body.participants
+  });
+  await conversation.save();
+  res.json(conversation);
+});
+
+app.get('/api/conversations/:id', async (req, res) => {
+  // Get a conversation by ID
+  const conversation = await Conversation.findById(req.params.id)
+    .populate('job_id')
+    .populate('participants');
+  res.json(conversation);
+});
+
+app.post('/api/conversations/:id/messages', async (req, res) => {
+  // Add a new message to a conversation
+  const message = new Message({
+    sender: req.body.sender,
+    receiver: req.body.receiver,
+    content: req.body.content
+  });
+  const conversation = await Conversation.findById(req.params.id);
+  conversation.messages.push(message);
+  await conversation.save();
+  res.json(message);
+});
+
+app.get('/api/conversations/:id/messages', async (req, res) => {
+  // Get all messages for a conversation
+  const conversation = await Conversation.findById(req.params.id).populate('messages.sender');
+  res.json(conversation.messages);
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
