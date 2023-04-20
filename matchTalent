@@ -1,0 +1,56 @@
+// Existing matchJobs function
+async function matchJobs(jobSeekerId) {
+  const jobSeeker = await db.getJobSeeker(jobSeekerId);
+  const jobListings = await db.getJobListings();
+
+  const X = np.array(factors.map(f => jobSeeker[f])).reshape([1, -1]);
+
+  const readFile = promisify(fs.readFile);
+  const modelJson = await readFile('job_matching_model.json', 'utf8');
+  const clf = RandomForestClassifier.fromJSON(JSON.parse(modelJson));
+
+  const yPred = clf.predict(X);
+  const matches = [];
+
+  for (let i = 0; i < jobListings.length; i++) {
+    if (yPred.get(i) === 1) {
+      matches.push(jobListings[i]);
+    }
+  }
+
+  return matches;
+}
+
+// New matchTalent function for employers
+async function matchTalent(jobListingId) {
+  const jobListing = await db.getJobListing(jobListingId);
+  const jobSeekers = await db.getJobSeekers();
+
+  const X = np.array(factors.map(f => jobListing[f])).reshape([1, -1]);
+
+  const readFile = promisify(fs.readFile);
+  const modelJson = await readFile('job_matching_model.json', 'utf8');
+  const clf = RandomForestClassifier.fromJSON(JSON.parse(modelJson));
+
+  const yPred = clf.predict(X);
+  const matches = [];
+
+  for (let i = 0; i < jobSeekers.length; i++) {
+    if (yPred.get(i) === 1) {
+      matches.push(jobSeekers[i]);
+    }
+  }
+
+  return matches;
+}
+
+// Example usage
+trainModel().then(() => {
+  console.log('Model training complete');
+  matchJobs(1).then(matches => {
+    console.log('Job matches for job seeker:', matches);
+  });
+  matchTalent(1).then(matches => {
+    console.log('Talent matches for employer:', matches);
+  });
+});
